@@ -24,7 +24,7 @@
 
         header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         header h1 {
@@ -44,6 +44,30 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             padding: 30px;
             text-align: center;
+        }
+
+        .api-section {
+            margin-bottom: 20px;
+            text-align: left;
+            background: #fff8e1;
+            padding: 15px;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+        }
+
+        .api-section label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        .api-section input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.9rem;
         }
 
         .upload-area {
@@ -111,7 +135,6 @@
             justify-content: center;
             border-radius: 6px;
             overflow: hidden;
-            /* Pola catur transparan untuk hasil hapus background */
             background-image: linear-gradient(45deg, #eee 25%, transparent 25%), 
                               linear-gradient(-45deg, #eee 25%, transparent 25%), 
                               linear-gradient(45deg, transparent 75%, #eee 75%), 
@@ -150,10 +173,16 @@
 
     <header>
         <h1>Pengubah Background Foto</h1>
-        <p>Hapus latar belakang gambar secara otomatis & gratis di browser Anda.</p>
+        <p>Hapus latar belakang gambar secara instan.</p>
     </header>
 
     <div class="container">
+        <!-- Input API Key -->
+        <div class="api-section">
+            <label for="apiKeyInput">API Key Remove.bg:</label>
+            <input type="password" id="apiKeyInput" placeholder="Masukkan API Key Remove.bg Anda di sini">
+        </div>
+
         <div class="upload-area" id="uploadArea">
             <p>Tarik & Lepas gambar di sini, atau</p>
             <span class="upload-btn">Pilih Gambar</span>
@@ -179,10 +208,7 @@
         </div>
     </div>
 
-    <!-- Modul JS Penghapus Background -->
-    <script type="module">
-        import imglyRemoveBackground from 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm';
-
+    <script>
         const fileInput = document.getElementById('fileInput');
         const uploadArea = document.getElementById('uploadArea');
         const statusText = document.getElementById('statusText');
@@ -190,6 +216,7 @@
         const originalImage = document.getElementById('originalImage');
         const resultImage = document.getElementById('resultImage');
         const downloadBtn = document.getElementById('downloadBtn');
+        const apiKeyInput = document.getElementById('apiKeyInput');
 
         uploadArea.addEventListener('click', () => fileInput.click());
 
@@ -198,7 +225,6 @@
             if (file) processImage(file);
         });
 
-        // Drag and drop handler
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
             uploadArea.style.background = '#eef6fc';
@@ -218,17 +244,42 @@
         });
 
         async function processImage(file) {
-            // Tampilkan foto asli
+            const apiKey = apiKeyInput.value.trim();
+
+            if (!apiKey) {
+                alert('Silakan masukkan API Key Remove.bg terlebih dahulu!');
+                return;
+            }
+
+            // Tampilkan gambar asli
             const originalUrl = URL.createObjectURL(file);
             originalImage.src = originalUrl;
 
-            // Reset & tampilkan status loading
+            // Status loading
+            statusText.style.color = '#e67e22';
+            statusText.textContent = 'Sedang memproses gambar... Mohon tunggu.';
             statusText.style.display = 'block';
             previewContainer.style.display = 'none';
 
+            // Kirim request ke API Remove.bg
+            const formData = new FormData();
+            formData.append('image_file', file);
+            formData.append('size', 'auto');
+
             try {
-                // Proses penghapusan latar belakang via AI
-                const blob = await imglyRemoveBackground(file);
+                const response = await fetch('https://api.remove.bg/v1.0/removebg', {
+                    method: 'POST',
+                    headers: {
+                        'X-Api-Key': apiKey
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Gagal memproses. Pastikan API Key benar.');
+                }
+
+                const blob = await response.blob();
                 const resultUrl = URL.createObjectURL(blob);
 
                 // Tampilkan hasil
@@ -239,7 +290,8 @@
                 previewContainer.style.display = 'flex';
             } catch (error) {
                 console.error(error);
-                statusText.textContent = 'Gagal memproses gambar. Silakan coba lagi.';
+                statusText.style.color = '#e74c3c';
+                statusText.textContent = error.message || 'Terjadi kesalahan saat mengolah gambar.';
             }
         }
     </script>
